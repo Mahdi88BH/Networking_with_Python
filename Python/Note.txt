@@ -1,0 +1,2 @@
+- pipreqs module can generate a requirement dependencies from a project by the following commande :
+    => pipreqs <path_project>
