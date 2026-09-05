@@ -1,0 +1,89 @@
+All three methods belong to Python’s standard `subprocess` module and are used to run external commands (like `ping`, `ls`, or `nmap`), but they represent **different generations of Python's API design and execution models**.
+
+| Feature        | `subprocess.call()`                | `subprocess.run()`                 | `subprocess.Popen()`                                  |
+| ---            | ---                                | ---                                | ---                                                   |
+| API Status     | Legacy (Python 2 / early Python 3) | Modern Standard (Python 3.5+)      | Advanced / Low-Level                                  |
+| Execution Mode | Synchronous (blocking)             | Synchronous (blocking)             | Asynchronous (non-blocking)                           |
+| Return Value   | Integer (return code only)         | `CompletedProcess` object          | `Popen` process object                                |
+| Output Capture | Difficult (requires redirection)   | Built-in via `capture_output=True` | Manual via `stdout=PIPE` and streams                  |
+| Best Use Case  | Legacy script maintenance          | 90% of everyday scripts            | Interactive, streaming, or parallel background tasks  |
+
+---
+
+### Detailed Breakdown
+
+#### 1. `subprocess.run()` — Modern & High-Level (Recommended)
+
+Introduced in Python 3.5, `run()` is designed to replace `call()`. 
+It blocks execution until the command finishes and returns a 
+`CompletedProcess` instance holding the return code, `stdout`, 
+and `stderr`.
+
+```python
+import subprocess
+
+- Simple execution with modern features
+result = subprocess.run(
+    ["ping", "-c", "1", "127.0.0.1"], 
+    capture_output=True, # Captures stdout and stderr automatically
+    text=True,           # Decodes output bytes into a string automatically
+    check=True           # Raises CalledProcessError if return code != 0
+)
+
+print(result.returncode) # 0
+print(result.stdout)     # Decoded ping output
+```
+
+#### 2. `subprocess.call()` — Legacy & High-Level (Deprecated Style)
+
+`call()` is an older wrapper function kept for backward compatibility. 
+It blocks execution and returns only the integer exit status code. It cannot easily capture command output into a variable.
+
+```python
+from subprocess import call
+
+# Only gives you the return code (e.g., 0 for success)
+return_code = call(["ping", "-c", "1", "127.0.0.1"])
+
+print(return_code) # Prints: 0
+# You cannot access stdout/stderr directly through return_code!
+```
+
+#### 3. `subprocess.Popen()` — Advanced & Low-Level
+
+`Popen` is the underlying engine that powers `run()` and `call()`. 
+Unlike them, calling `Popen()` does not block Python execution. 
+The command runs in the background while your script continues 
+to execute.
+
+Use `Popen` when you need to stream live terminal output, 
+send input to an interactive command, or run multiple commands in 
+parallel.
+
+```python
+from subprocess import Popen, PIPE
+
+# Starts process asynchronously in the background
+process = Popen(["ping", "-c", "4", "127.0.0.1"], stdout=PIPE, text=True)
+
+# Python continues running here while ping runs in the background!
+print("Ping process started with PID:", process.pid)
+
+# Read output line-by-line as it streams live
+for line in process.stdout:
+    print("LIVE OUTPUT:", line.strip())
+
+process.wait() # Wait for process to officially complete
+
+```
+
+---
+
+### Summary Checklist
+
+* Use `subprocess.run()` for almost all standard commands where you 
+    wait for a command to finish and inspect the result.
+* Avoid `subprocess.call()` in new code—replace it with 
+    `subprocess.run()`.
+* Use `subprocess.Popen()` only when you need continuous background 
+    execution, real-time output streaming, or interactive input handling.
