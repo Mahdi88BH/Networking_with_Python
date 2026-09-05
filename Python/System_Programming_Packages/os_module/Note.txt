@@ -1,0 +1,43 @@
+Both functions create directories in Python, but they handle **nested directory paths** (parent/child folders) differently.
+
+| Feature                  | `os.mkdir()`                                                     | `os.makedirs()`                                                                |
+| ---                      | ---                                                              | ---                                                                            |
+| Primary Use Case         | Creating a single directory.                                     | Creating a nested chain of directories.                                        |
+| Missing Parent Folders   | Fails with a `FileNotFoundError` if parent folders do not exist. | Succeeds by automatically creating any missing parent folders.                 |
+| Directory Already Exists | Raises `FileExistsError`.                                        | Raises `FileExistsError` by default, but can be bypassed with `exist_ok=True`. |
+
+---
+
+### Code Examples
+
+-1. `os.mkdir()` — Single Folder Only
+
+```python
+import os
+
+# Works ONLY if the path 'logs' already exists
+os.mkdir("logs/2026/scans") 
+# Result: Raises FileNotFoundError if 'logs' or 'logs/2026' does 
+    not exist yet.
+
+```
+
+2. `os.makedirs()` — Full Folder Path (Recursive)
+
+```python
+import os
+
+# Automatically creates 'logs', then '2026', then 'scans' if they 
+    don't exist
+os.makedirs("logs/2026/scans", exist_ok=True)
+# Result: Creates all missing directories cleanly without throwing 
+    errors.
+
+```
+
+- Recommendation
+    => In security and networking scripts (e.g., creating output 
+    directories for scan results or logs), 
+    `os.makedirs(path, exist_ok=True)` is almost always preferred 
+    because it prevents your script from crashing if parent folders 
+    are missing or if the target directory already exists.
