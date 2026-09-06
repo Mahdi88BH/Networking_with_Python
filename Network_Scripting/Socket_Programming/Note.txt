@@ -1,0 +1,119 @@
+A socket is an endpoint for sending or receiving data across a computer 
+    network. It acts as the software interface between an application 
+    (like a web browser or a Python script) and the operating system’s 
+    underlying network protocol stack (TCP/IP).
+
+---
+
+- The Fundamental Analogy: Phone Calls and Mailboxes
+    * IP Address: Like a building address. It identifies which machine 
+        on the network you want to reach.
+    * Port Number: Like an apartment or office number inside that building.
+     It identifies *which specific application or service* should receive 
+     the data (e.g., Port 80/443 for web servers, Port 22 for SSH).
+    * Socket: The physical telephone device or mail slot installed 
+    at that specific apartment. It is the active connection object through 
+    which data flows in and out.
+
+```
+Machine A (Client)                             Machine B (Server)
+[ IP: 192.168.1.10 ]                           [ IP: 10.0.0.5 ]
++-------------------+                         +-------------------+
+|  Python Script    |                         |  Web Server       |
+|  (Port: 54321)    |                         |  (Port: 80)       |
+|         |         |                         |         |         |
+|   [ SOCKET ] <=====> Network / Internet <=====> [ SOCKET ]      |
++-------------------+                         +-------------------+
+```
+
+---
+
+### The Anatomy of a Socket
+
+- A network socket is defined by a 5-tuple of information:
+    1. Transport Protocol: Usually TCP (reliable, connection-oriented) or 
+    UDP (fast, connectionless).
+    2. Source IP Address
+    3. Source Port Number
+    4. Destination IP Address
+    5. Destination Port Number
+
+---
+
+### The Socket Lifecycle
+
+Sockets operate differently depending on whether they act as a Server 
+(listening for incoming connections) or a Client (initiating a connection).
+
+| Server-Side Socket Flow                                                   | Client-Side Socket Flow                                                     |
+| ---                                                                       | ---                                                                         |
+| 1. Create (`socket()`): Allocate the socket object.                       | 1. Create (`socket()`): Allocate the socket object.                         |
+| 2. Bind (`bind()`): Associate socket with an IP and Port.                 |                                                                             |
+| 3. Listen (`listen()`): Put socket into passive listening mode.           |                                                                             |
+| 4. Accept (`accept()`): Block and wait for an incoming client connection. | 2. Connect (`connect()`): Initiate 3-way TCP handshake to target IP/Port.   |
+| 5. Read/Write (`recv() / send()`): Exchange raw bytes.                    | 3. Read/Write (`send() / recv()`): Exchange raw bytes.                      |
+| 6. Close (`close()`): Terminate the connection.                           | 4. Close (`close()`): Terminate the connection.                             |
+
+---
+
+### Minimal Python Socket Example
+
+Here is a basic example showing how a client socket connects to 
+a web server and retrieves data:
+
+```python
+import socket
+
+# 1. Create a TCP/IP socket (AF_INET = IPv4, SOCK_STREAM = TCP)
+client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+# 2. Connect to the target machine on Port 80 (HTTP)
+client_socket.connect(("example.com", 80))
+
+# 3. Send raw HTTP GET request bytes
+request = b"GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n"
+client_socket.sendall(request)
+
+# 4. Receive up to 1024 bytes of response data
+response = client_socket.recv(1024)
+print(response.decode("utf-8"))
+
+# 5. Close the endpoint connection
+client_socket.close()
+```
+
+---
+
+### Sockets in Concurrent Programming
+
+- In security tools and network scanners (like port sweepers or custom proxies):
+    * Blocking Sockets: Default behavior. Operations like `.connect()` or 
+    `.recv()` pause thread execution until data arrives or the connection 
+    times out. This is why `threading` or `ThreadPoolExecutor` is heavily 
+    used—so hundreds of sockets can wait on network responses concurrently 
+    without freezing your application.
+    * Non-Blocking / Async Sockets: Sockets configured to return immediately, 
+    enabling a single thread to monitor thousands of open sockets 
+    simultaneously using event loops (like Python's `asyncio`).
+
+
+
+
+- The main socket methods :
+    • socket.accept() is used to accept connections and returns a value pair 
+    as (conn, address).
+    • socket.bind() is used to bind addresses specified as a parameter.
+    • socket.connect() is used to connect to the address specified as a parameter.
+    • socket.listen() is used to listen for commands on the server or client.
+    •socket.recv(buflen) is used for receiving data from the socket. The method 
+    argument indicates the maximum amount of data it can receive.
+    • socket.recvfrom(buflen) is used for receiving data and the sender’s 
+    address.
+    • socket.recv_into(buffer) is used for receiving data into a buffer.
+    • socket.send(bytes) is used for sending bytes of data to the specified 
+    target.
+    • socket.sendto(data, address) is used for sending data to a given address.
+    • socket.sendall(data) is used for sending all the data in the buffer to 
+    the socket.
+    • socket.close() is used for releasing the memory and finishes 
+    the connection.
