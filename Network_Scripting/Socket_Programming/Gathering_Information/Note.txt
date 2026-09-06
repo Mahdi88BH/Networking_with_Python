@@ -95,25 +95,3 @@ client_socket.close()
     * Non-Blocking / Async Sockets: Sockets configured to return immediately, 
     enabling a single thread to monitor thousands of open sockets 
     simultaneously using event loops (like Python's `asyncio`).
-
-
-
-
-- The main socket methods :
-    • socket.accept() is used to accept connections and returns a value pair 
-    as (conn, address).
-    • socket.bind() is used to bind addresses specified as a parameter.
-    • socket.connect() is used to connect to the address specified as a parameter.
-    • socket.listen() is used to listen for commands on the server or client.
-    •socket.recv(buflen) is used for receiving data from the socket. The method 
-    argument indicates the maximum amount of data it can receive.
-    • socket.recvfrom(buflen) is used for receiving data and the sender’s 
-    address.
-    • socket.recv_into(buffer) is used for receiving data into a buffer.
-    • socket.send(bytes) is used for sending bytes of data to the specified 
-    target.
-    • socket.sendto(data, address) is used for sending data to a given address.
-    • socket.sendall(data) is used for sending all the data in the buffer to 
-    the socket.
-    • socket.close() is used for releasing the memory and finishes 
-    the connection.
