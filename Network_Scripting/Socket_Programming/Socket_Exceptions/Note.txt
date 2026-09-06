@@ -1,0 +1,8 @@
+• exception socket.timeout: This block catches exceptions related to 
+the expiration of waiting times.
+• exception socket.gaierror: This block catches errors during the search for 
+information about IP addresses. For example, when we are using the getaddrinfo() 
+and getnameinfo() methods.
+• exception socket.error: This block catches generic input and output errors 
+and communication. This is a generic block where you can catch any type 
+of exception.
