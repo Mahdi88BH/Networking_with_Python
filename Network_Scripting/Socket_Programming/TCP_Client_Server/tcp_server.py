@@ -24,7 +24,7 @@ def main():
             print(f"[*] Accepted connection from {addr[0]}:{addr[1]}")
 
             # Send initial welcome banner to the client upon connection
-            client.sendall(f"Am the Server Accepting connections on posrt : {SERVER_PORT}".encode("utf-8"))
+            client.sendall(f"Am the Server Accepting connections on port : {SERVER_PORT}".encode("utf-8"))
 
             while True:
                 data = client.recv(1024)
