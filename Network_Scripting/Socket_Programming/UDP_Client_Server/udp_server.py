@@ -6,38 +6,39 @@ SERVER_PORT = 6789
 
 
 def main():
-
-    # 1. Instantiate an IPv4 (AF_INET), UDP (SOCK_DGRAM) datagram socket using context manager.
-    # Unlike TCP (SOCK_STREAM), UDP is connectionless and message-oriented.
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as so:
-        # 2. Bind the UDP socket to the local host address and port to listen for incoming datagrams.
         so.bind((SERVER_IP, SERVER_PORT))
-
         print(f"[*] UDP Server listening on {SERVER_IP}:{SERVER_PORT}")
+        print("[*] Press Ctrl+C to stop the server safely.\n")
 
-        while True:
-            # 3. Read up to 4096 bytes from the UDP socket buffer.
-            # Returns a 2-element tuple: (data_bytes, client_address_tuple).
-            data, addr = so.recvfrom(4096)
-            so.sendto(
-                f"Server ACK: Received from IP {addr[0]} port {addr[1]}".encode('utf-8'), 
-                addr
-            )
+        try:
+            while True:
+                # Wait for incoming datagram
+                data, addr = so.recvfrom(4096)
 
-            data = data.decode('utf-8', errors='ignore').strip()
+                # Send ACK packet
+                ack_msg = f"Server ACK: Received from IP {addr[0]} port {addr[1]}"
+                so.sendto(ack_msg.encode('utf-8'), addr)
 
-            print(f"[*] Received message from {addr[0]}:{addr[1]} => '{data}'")
+                payload = data.decode('utf-8', errors='ignore').strip()
 
-            try:
+                if payload.lower() == 'quit':
+                    print(f"[*] Client {addr[0]}:{addr[1]} sent 'quit'. Ending server session.")
+                    so.sendto(b"Server session terminated.\n", addr)
+                    break
+
+                print(f"[*] Message from {addr[0]}:{addr[1]} => '{payload}'")
+
+                # Prepare platform response
                 response = f"Hi from server running on {sys.platform}"
-            except KeyboardInterrupt:
-                print("\n[*] Server shutting down gracefully.")
-                break
-            except Exception as ex:
-                response = f"{sys.exc_info()[0]}"
+                print(f"[*] Sending Response: {response}")
+                
+                so.sendto(response.encode('utf-8'), addr)
 
-            print(f"[*] Sending Response: {response}")
-            so.sendto(response.encode('utf-8'), addr)
+        except KeyboardInterrupt:
+            print("\n[*] Server shutting down gracefully (KeyboardInterrupt).")
+        except socket.error as err:
+            print(f"[-] Socket error encountered: {err}")
 
 
 if __name__ == "__main__":
