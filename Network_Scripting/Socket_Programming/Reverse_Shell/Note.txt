@@ -251,3 +251,14 @@ nc -lvnp 45678                                       python3 reverse_shell.py
 
 > If you ran this script on the attacker's machine, it would simply connect back to yourself and give you a shell 
     on your own computer!
+
+
+
+•Other projects related to getting a reverse shell:
+When a pentest is performed, sometimes critical vulnerabilities are located that, when exploited, 
+allow a shell to be generated, which can be bound or reversed as appropriate. For this purpose, 
+there is an interesting project on GitHub called Shellerator that, by means of a wizard, teaches 
+valid commands that can be executed against the target for the generation of a shell. This project 
+is developed in Python 3 and has a file called requirements.txt to install all the dependencies 
+using PIP. Another interesting project is https://github.com/0xTRAW/PwnLnX as an advanced 
+multi-threaded, multi-client Python reverse shell for hacking Linux systems.
