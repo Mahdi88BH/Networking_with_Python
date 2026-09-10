@@ -1,0 +1,102 @@
+- SSL (Secure Sockets Layer) and TLS (Transport Layer Security) are cryptographic protocols designed 
+to secure communication over a computer network.
+
+- TLS is the modern, secure successor to SSL. While people still colloquially say "SSL," modern 
+applications exclusively use TLS (specifically TLS 1.2 and TLS 1.3), 
+as all versions of SSL (1.0, 2.0, 3.0) are deprecated due to severe security vulnerabilities.
+
+---
+
+- Meanings & Core Purpose
+    * SSL: Secure Sockets Layer (Developed by Netscape in 1995).
+    * TLS: Transport Layer Security (Introduced by the IETF in 1999 as an upgraded version of SSL 3.0).
+
+- Both protocols operate at the Session / Transport Layer of the OSI model—positioned directly 
+between the Application Layer (e.g., HTTP, SMTP, FTP) and the Transport Layer (TCP).
+
+- When you attach TLS to an application protocol, it gains a secure variant:
+    * HTTP + TLS --> HTTPS (Port 443)
+    * SMTP + TLS --> SMTPS (Port 465)
+    * FTP + TLS  --> FTPS  (Port 990)
+
+---
+
+- The 3 Core Functions of TLS/SSL
+
+TLS provides three fundamental security guarantees across an untrusted network:
+
+| Function                        | What It Does                                                                               | Mechanism Used                                                  |
+| ---                             | ---                                                                                        | ---                                                             |
+| 1. Encryption (Confidentiality) | Protects transmitted data from eavesdropping. Eavesdroppers only see scrambled ciphertext. | Symmetric Encryption (AES-GCM, ChaCha20)                        |
+| 2. Authentication (Identity)    | Verifies that the client is talking to the real server (and not an impersonator).          | Digital Certificates (X.509) & Asymmetric Encryption (RSA, ECC) |
+| 3. Integrity (Tamper Proofing)  | Ensures data cannot be altered or corrupted in transit without detection.                  | Message Authentication Codes (HMAC, AEAD)                       |
+
+---
+
+- How TLS Works: The TLS Handshake
+
+Before any application data (like an HTTP request) is sent, the client and server perform a 
+TLS Handshake over an established TCP connection to authenticate each other and negotiate 
+cryptographic keys.
+
+```
+[ Client / Browser ]                                       [ Server ]
+         |                                                     |
+         | -------- 1. ClientHello (TLS Version, Ciphers) ---> |
+         | <------- 2. ServerHello + Certificate + KeyEx ----- |
+         |                                                     |
+         |  * Client verifies Server's X.509 Certificate *    |
+         |  * Client & Server derive Symmetric Session Key *   |
+         |                                                     |
+         | -------- 3. Finished (Encrypted) -----------------> |
+         | <------- 4. Finished (Encrypted) ------------------ |
+         |                                                     |
+         | <======= Encrypted Application Data (HTTPS) ======> |
+```
+
+ Step-by-Step Execution:
+    1. ClientHello: The client sends its supported TLS versions, supported cipher suites 
+(encryption algorithms), and a random string.
+    2. ServerHello & Certificate: The server chooses the cipher suite, sends its X.509 Digital 
+Certificate (containing its public key), and its key exchange parameters.
+    3. Authentication: The client verifies the server's certificate against trusted Root Certificate 
+Authorities (CAs). If valid, the client knows it is connected to the real server.
+    4. Key Exchange: Using asymmetric cryptography (e.g., Elliptic Curve Diffie-Hellman / ECDHE), 
+both sides independently calculate the same shared symmetric session key without ever sending 
+that key over the wire.
+    5. Encrypted Communication: Asymmetric encryption is computationally heavy. Once the handshake 
+finishes, both sides switch to fast **symmetric encryption** using the derived session key for 
+all actual payload data.
+
+---
+
+- TLS Protocol Architecture
+
+TLS consists of two main layers:
+
+```
++-------------------------------------------------------------------+
+|  Handshake Protocol  |  Alert Protocol  |  ChangeCipherSpec Proto |  <-- Control Protocols
++-------------------------------------------------------------------+
+|                        TLS Record Protocol                        |  <-- Base Transport Layer
++-------------------------------------------------------------------+
+|                                TCP                                |
++-------------------------------------------------------------------+
+```
+
+1. TLS Record Protocol: The lower-level protocol that encapsulates outgoing data, handles 
+compression/fragmentation, and applies symmetric encryption and MAC integrity checks.
+2. TLS Handshake Protocol: The upper-level control protocol that handles server/client 
+authentication, session key negotiation, and cipher selection.
+
+---
+
+- Key Evolutionary Differences: SSL vs. TLS 1.3
+
+| Feature           | SSL 3.0 (1996)          | TLS 1.2 (2008)        | TLS 1.3 (2018)               |
+| ---               | ---                     | ---                   | ---                          |
+| Status            | Deprecated / Vulnerable | Active (Widespread)   | Current Standard             |
+| Handshake Latency | 2 Round Trips (2-RTT)   | 2 Round Trips (2-RTT) | 1 Round Trip (1-RTT) / 0-RTT |
+| Key Exchange      | RSA, Static DH          | RSA, DHE, ECDHE       | Ephemeral Only (ECDHE, DHE)  |
+| Forward Secrecy   | Optional / Weak         | Optional              | Mandatory                    |
+| Insecure Ciphers  | Enabled (RC4, MD5, 3DES)| Optional              | Completely Removed           |
