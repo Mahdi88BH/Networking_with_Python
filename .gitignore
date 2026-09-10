@@ -1,2 +1,4 @@
 __pycache__/
 .vscode
+key.pem
+cert.pem
