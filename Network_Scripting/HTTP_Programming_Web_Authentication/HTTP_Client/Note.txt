@@ -1,0 +1,133 @@
+The HTTP (Hypertext Transfer Protocol) is an application-layer protocol that powers data communication on the World Wide Web. It operates on a 
+client-server, request-response architecture—typically over a reliable TCP socket connection (on port 80 for plaintext HTTP or port 443 for encrypted HTTPS).
+
+---
+
+- The HTTP Lifecycle
+
+- When a client (like a browser or raw Python socket script) wants to communicate with a server, the interaction follows four steps:
+    1. TCP Connection: The client establishes a 3-way TCP handshake with the server host and port.
+    2. HTTP Request: The client sends plain ASCII text containing a method, path, headers, and optional body.
+    3. HTTP Processing & Response: The server processes the request and sends back a response containing a status code, response headers, and body content.
+    4. Connection Termination / Reuse: The TCP connection is either closed (`Connection: close`) or kept alive (`Connection: keep-alive`) for subsequent requests.
+
+---
+
+- 1. HTTP Request Structure
+
+- An HTTP request consists of three main parts: Request Line, Headers, and Body.
+
+```
+GET /index.html HTTP/1.1\r\n           <-- Request Line (Method, Path, Version)
+Host: www.example.com\r\n             <-- Mandatory Host Header
+User-Agent: PythonSocket/1.0\r\n      <-- Client Metadata Header
+Accept: text/html\r\n                  <-- Expected Content Type Header
+Connection: close\r\n                  <-- Connection State
+\r\n                                   <-- Empty Line (CRLF \r\n\r\n) Delimits Headers from Body
+[ Optional Body Payload ]              <-- Request Body (used in POST, PUT)
+```
+
+- Key HTTP Request Methods:
+
+| Method    | Purpose                                                  | Has Request Body? | Safe / Idempotent? |
+| ---       | ---                                                      | ---               | ---                |
+| `GET`     | Retrieve data from the server                            | No                | Safe & Idempotent  |
+| `POST`    | Submit data to be processed (create resources)           | Yes               | Neither            |
+| `PUT`     | Replace or create a resource at a specific URI           | Yes               | Idempotent         |
+| `PATCH`   | Partially modify a resource                              | Yes               | Neither            |
+| `DELETE`  | Remove a resource from the server                        | Optional          | Idempotent         |
+| `HEAD`    | Same as `GET`, but server returns only headers (no body) | No                | Safe & Idempotent  |
+
+---
+
+- 2. HTTP Response Structure
+
+An HTTP response mirrors the request layout: Status Line, Headers, and Body.
+
+```
+HTTP/1.1 200 OK\r\n                    <-- Status Line (Protocol, Status Code, Reason)
+Content-Type: text/html\r\n            <-- Body Data Type (MIME)
+Content-Length: 48\r\n                 <-- Exact Body Length in Bytes
+Server: Apache/2.4.41\r\n              <-- Server Software Identifier
+Connection: close\r\n                  <-- Connection State
+\r\n                                   <-- Empty Line (\r\n\r\n)
+<html><body><h1>Hello World!</h1></body></html> <-- Response Body
+```
+
+- HTTP Status Code Categories:
+    * `1xx` (Informational): Request received, continuing process (e.g., `100 Continue`).
+    * `2xx` (Success): Action successfully received and accepted (e.g., `200 OK`, `201 Created`).
+    * `3xx` (Redirection): Further action needed to complete request (e.g., `301 Moved Permanently`, `302 Found`).
+    * `4xx` (Client Errors): Request contains bad syntax or cannot be fulfilled (e.g., `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`).
+    * `5xx` (Server Errors): Server failed to fulfill an apparently valid request (e.g., `500 Internal Server Error`, `502 Bad Gateway`, `503 Service Unavailable`).
+
+---
+
+- 3. Essential HTTP Protocol Headers
+
+- Headers pass operational metadata between client and server:
+    * `Host`: (Required in HTTP/1.1) Specifies the target domain name. Allows multiple virtual domains to run on a single IP address.
+    * `Content-Type`: Specifies the MIME type of the payload (e.g., `text/html`, `application/json`, `multipart/form-data`).
+    * `Content-Length`: Tells the receiver exactly how many raw bytes to read from the socket stream to complete the body.
+    * `Authorization`: Carries credentials (e.g., `Bearer <token>` or `Basic <base64>`) for protected routes.
+    * `Set-Cookie` / `Cookie`: Pass key-value state pairs to maintain web sessions across stateless HTTP requests.
+
+---
+
+- 4. Evolution of HTTP Versions
+
+```
+HTTP/1.0 (1996)   ---> HTTP/1.1 (1997)     ---> HTTP/2 (2015)     ---> HTTP/3 (2022)
+  New TCP connection   Persistent connections   Binary framing,        QUIC protocol over UDP,
+  per request          (Keep-Alive), Pipelining Multiplexing over 1 TCP zero head-of-line blocking
+```
+
+| Feature            | HTTP/1.1                                 | HTTP/2                                 | HTTP/3                             |
+| ---                | ---                                      | ---                                    | ---                                |
+| Transport Layer    | TCP                                      | TCP                                    | UDP (QUIC)                         |
+| Data Format        | Plain Text (ASCII)                       | Binary Frames                          | Binary Frames                      |
+| Multiplexing       | No (suffers from Head-of-Line Blocking)  | Yes (Multiple streams over 1 TCP conn) | Yes (Independent streams over UDP) |
+| Header Compression | None                                     | HPACK                                  | QPACK                              |
+| Encryption         | Optional (HTTPS)                         | Practically Mandatory                  | Mandatory (Built-in TLS 1.3)       |
+
+---
+
+- Building a Minimal HTTP Parser in Python Sockets
+
+To tie this back to your socket programming work, here is how a raw server parses incoming HTTP headers into clean Python data structures:
+
+```python
+import socket
+
+def parse_http_request(raw_request_str):
+    # Split headers from body using CRLF boundary
+    parts = raw_request_str.split("\r\n\r\n", 1)
+    header_block = parts[0]
+    body = parts[1] if len(parts) > 1 else ""
+
+    lines = header_block.split("\r\n")
+    
+    # Parse Request Line
+    request_line = lines[0]
+    method, path, version = request_line.split(" ")
+
+    # Parse Header Key-Value Pairs
+    headers = {}
+    for line in lines[1:]:
+        if ":" in line:
+            key, val = line.split(":", 1)
+            headers[key.strip().lower()] = val.strip()
+
+    return {
+        "method": method,
+        "path": path,
+        "version": version,
+        "headers": headers,
+        "body": body
+    }
+
+# Example Usage
+raw_http = "GET /api/user HTTP/1.1\r\nHost: localhost:8080\r\nUser-Agent: Python\r\n\r\n"
+parsed = parse_http_request(raw_http)
+print(f"Method: {parsed['method']} | Path: {parsed['path']} | Host: {parsed['headers']['host']}")
+```
