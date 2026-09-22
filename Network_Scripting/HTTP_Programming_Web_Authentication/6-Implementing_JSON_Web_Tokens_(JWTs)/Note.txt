@@ -1,0 +1,138 @@
+    => A JSON Web Token (JWT) (pronounced "jot") is an open standard ([RFC 7519](https://datatracker.ietf.org/doc/html/rfc7519?utm_source=gemini)) 
+    for securely transmitting information between parties as a compact, self-contained JSON object.
+
+Because JWTs are digitally signed using a secret key (HMAC) or a public/private key pair (RSA/ECDSA), the recipient can verify 
+that the sender is authentic and that the payload has not been tampered with.
+
+---
+
+- 1. Structure of a JWT
+
+- A JWT is a single string composed of **three Base64URL-encoded strings** separated by dots (`.`):
+    - JWT = Header.Payload.Signature
+
+```
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkFsaWNlIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+```
+
+- 1. Header
+    - Contains metadata about the token, including the signing algorithm (`alg`) and token type (`typ`).
+
+```json
+{
+  "alg": "HS256",
+  "typ": "JWT"
+}
+```
+
+- 2. Payload (Claims)
+
+- Contains statement details about the entity (user) and additional metadata. Claims are grouped into three categories:
+    * Registered Claims: Pre-defined standards (e.g., `iss` [issuer], `exp` [expiration time], `sub` [subject/user ID], `iat` [issued at]).
+    * Public Claims: Custom names collision-resistant across organizations (e.g., `[https://example.com/is_admin](https://example.com/is_admin)`).
+    * Private Claims: Custom claims created to share information between parties (e.g., `role: "admin"`).
+
+```json
+{
+  "sub": "1234567890",
+  "name": "Alice",
+  "admin": true,
+  "exp": 1758572400
+}
+```
+
+> Security Warning: The header and payload are only Base64URL encoded, NOT encrypted. Anyone can decode a JWT payload. 
+Never store sensitive credentials like passwords, secret keys, or SSNs inside a JWT unless you encrypt it using JSON Web Encryption (JWE).
+
+- 3. Signature
+
+The signature verifies that the message was not altered along the way. To create the signature, the encoded header, encoded payload, 
+and a secret/private key are hashed together using the algorithm specified in the header:
+    - Signature = HMACSHA256(base64UrlEncode(Header) + "." + base64UrlEncode(Payload), secret)
+
+---
+
+- 2. Typical JWT Authentication Flow
+
+```
+[ Client ]                            [ Auth Server ]                      [ Resource API ]
+    |                                        |                                     |
+    | --- 1. POST /login (user, pass) -----> |                                     |
+    | <-- 2. Returns JWT Token -------------- |                                     |
+    |                                                                              |
+    | --- 3. GET /protected-data (Authorization: Bearer <JWT>) ------------------> |
+    | <-- 4. Validates signature & exp locally -> Returns Data ------------------- |
+```
+
+---
+
+- 3. JWT Handling in Python (`PyJWT`)
+    - In Python, the `PyJWT` library is the standard tool for encoding, decoding, and verifying JWTs.
+
+- Installation
+
+```bash
+pip install pyjwt
+```
+
+- Creating and Verifying Tokens
+
+```python
+from datetime import datetime, timedelta, timezone
+import jwt
+
+SECRET_KEY = "super-secret-key-change-in-production"
+ALGORITHM = "HS256"
+
+# 1. Create (Encode) a JWT Token
+def create_jwt(user_id: str) -> str:
+    payload = {
+        "sub": user_id,
+        "role": "admin",
+        "iat": datetime.now(timezone.utc),
+        # Token expires in 15 minutes
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=15)
+    }
+    
+    encoded_jwt = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+# 2. Verify and Decode a JWT Token
+def verify_jwt(token: str) -> dict | None:
+    try:
+        # jwt.decode automatically verifies signature AND checks expiration ('exp')
+        decoded_payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return decoded_payload
+    except jwt.ExpiredSignatureError:
+        print("[-] Token expired! Please log in again.")
+    except jwt.InvalidTokenError as err:
+        print(f"[-] Invalid token: {err}")
+    
+    return None
+
+if __name__ == "__main__":
+    token = create_jwt("user_12345")
+    print(f"[+] Generated Token:\n{token}\n")
+
+    decoded = verify_jwt(token)
+    if decoded:
+        print(f"[+] Successfully verified token for user: {decoded['sub']} (Role: {decoded['role']})")
+```
+
+---
+
+- 4. Key Security Vulnerabilities & Mitigations
+
+- 1. `alg: "none"` Attack
+    - Attackers attempt to tamper with the header by changing `"alg": "HS256"` to `"alg": "none"` and removing the signature.
+        * Mitigation: Always explicitly pass allowed algorithms to your decode function: `jwt.decode(token, key, algorithms=["HS256"])`.
+
+- 2. Weak HMAC Secret Keys
+    - If you use symmetric HMAC (`HS256`) with a weak secret key (e.g., `secret123`), attackers can brute-force the secret offline using tools 
+    like Hashcat or John the Ripper.
+        * Mitigation: Use strong, randomly generated secrets (at least 256 bits) or asymmetric keys (`RS256` / `ES256`).
+
+- 3. Token Invalidation / Revocation
+    - Because JWTs are stateless, revoking a token before its `exp` time is non-trivial.
+        * Mitigation: Use short-lived Access Tokens (10–15 mins) combined with longer-lived Refresh Tokens stored 
+        in a server database/Redis whitelist.
