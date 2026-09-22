@@ -1,0 +1,83 @@
+    => OAuth 2.0 is an open delegation framework for authorization. It allows a client application to access protected resources on 
+    behalf of a resource owner without sharing the owner's primary login credentials (like a password).
+
+---
+
+- Key Roles in OAuth 2.0
+    * Resource Owner (User): The entity that owns the data (e.g., a Google user).
+    * Client Application: The third-party app requesting access to the data (e.g., a Python script or web app).
+    * Authorization Server: The server that authenticates the Resource Owner and issues access tokens (e.g., `accounts.google.com`).
+    * Resource Server: The API hosting the protected data (e.g., `[www.googleapis.com/drive](https://www.googleapis.com/drive)`).
+
+---
+
+- The 4 OAuth 2.0 Authorization Grant Types
+
+```
+[ Client App ] ---> 1. Authorization Request ---> [ Authorization Server ]
+      |                                                  |
+      |<--- 2. Authorization Code / Token <--------------|
+      |
+      | ---> 3. Exchange Code for Access Token ---------> [ Authorization Server ]
+      |<--- 4. Access Token (Bearer) <-------------------|
+      |
+      | ---> 5. API Request with Access Token -----------> [ Resource Server ]
+```
+
+| Grant Type                     | Use Case                                           | Mechanism                                                                                                                                        |
+| ---                            | ---                                                | ---                                                                                                                                              |
+| Authorization Code (with PKCE) | Web apps, SPAs (React/Vue), Mobile Apps            | Redirects user to consent screen, returns temporary `code`, exchanged backend-to-backend for `access_token`. PKCE prevents interception attacks. |
+| Client Credentials             | Machine-to-Machine (M2M), Cron jobs, Microservices | Client authenticates directly using `client_id` + `client_secret` to obtain an `access_token` (no user involved).                                |
+| Device Authorization Code      | Smart TVs, CLI tools, IoT devices                  | Prompts user to open a browser on another device and enter a short code (e.g., `X8B-91C`).                                                       |
+| Refresh Token Grant            | Long-running sessions                              | Exchanging a long-lived `refresh_token` for a fresh short-lived `access_token` when the old one expires.                                         |
+
+> Note on Legacy Grants: The Implicit Grant and Resource Owner Password Credentials Grant are officially deprecated due to security 
+vulnerabilities (token leakage in URLs and exposed credentials).
+
+---
+
+- Python Implementation: OAuth 2.0 Client Credentials Grant
+    - For machine-to-machine integration (e.g., querying GitHub, Spotify, or Okta APIs as a service), use the `requests-oauthlib` package:
+
+```bash
+pip install requests-oauthlib
+```
+
+```python
+from oauthlib.oauth2 import BackendApplicationClient
+from requests_oauthlib import OAuth2Session
+
+# Credentials from your provider's developer portal
+client_id = "YOUR_CLIENT_ID"
+client_secret = "YOUR_CLIENT_SECRET"
+token_url = "https://provider.example.com/oauth/token"
+protected_api_url = "https://provider.example.com/api/v1/resource"
+
+# 1. Initialize client using the Client Credentials grant
+client = BackendApplicationClient(client_id=client_id)
+oauth = OAuth2Session(client=client)
+
+try:
+    # 2. Fetch Access Token directly from Authorization Server
+    token = oauth.fetch_token(
+        token_url=token_url,
+        client_id=client_id,
+        client_secret=client_secret
+    )
+    print("Received Access Token:", token.get("access_token"))
+
+    # 3. Access Protected API (requests-oauthlib automatically attaches 'Authorization: Bearer <token>')
+    response = oauth.get(protected_api_url)
+    print("API Response Status:", response.status_code)
+    print("Data:", response.json())
+
+except Exception as err:
+    print("OAuth Authentication failed:", err)
+```
+
+---
+
+- OAuth 2.0 vs. OpenID Connect (OIDC)
+    * OAuth 2.0: Designed strictly for Authorization ("What resources is this app allowed to access?"). Returns an `access_token`.
+    * OpenID Connect (OIDC): An identity layer built on top of OAuth 2.0 designed for Authentication ("Who is this user?"). 
+    Returns an `id_token` (JWT containing profile data like email and username) alongside the `access_token`.
