@@ -1,4 +1,4 @@
-A RESTful API (Representational State Transfer) is an architectural style for designing networked applications. It relies on a stateless, 
+    => A RESTful API (Representational State Transfer) is an architectural style for designing networked applications. It relies on a stateless, 
 client-server communication protocol—almost universally HTTP—to allow clients (web apps, mobile apps, Python scripts) to create, read, update, 
 and delete resources on a server.
 
@@ -109,4 +109,328 @@ def create_new_post(title: str, body: str, user_id: int):
 if __name__ == "__main__":
     create_new_post("Learning REST APIs", "REST uses HTTP methods for CRUD operations.", 1)
 
+```
+
+
+
+
+
+
+    => The `requests` library ("HTTP for Humans") is the industry-standard Python package for consuming web services and RESTful APIs.
+
+While `urllib.request` is built into Python's standard library, it requires manual bytes management, verbose stream handling, and complex opener pipelines. 
+`requests` simplifies these tasks, handling UTF-8 encoding, connection pooling, session cookies, JSON decoding, and status checking under the hood.
+
+---
+
+- Core HTTP Operations (CRUD)
+
+- `requests` maps directly to HTTP methods via simple function calls:
+
+```python
+import requests
+
+BASE_URL = "https://jsonplaceholder.typicode.com/posts"
+
+# 1. GET (Read All)
+response = requests.get(BASE_URL)
+print(f"GET Status: {response.status_code}")
+posts = response.json()  # Automatically parses JSON response body into Python dict/list
+
+# 2. GET with Query Parameters (e.g., /posts?userId=1)
+response = requests.get(BASE_URL, params={"userId": 1})
+print(f"Filtered Posts Count: {len(response.json())}")
+
+# 3. POST (Create Resource)
+new_post = {
+    "title": "Learning Requests",
+    "body": "Python requests simplifies HTTP.",
+    "userId": 1
+}
+# Passing json= automatically sets 'Content-Type: application/json' and encodes the body
+response = requests.post(BASE_URL, json=new_post)
+print(f"POST Status: {response.status_code}")  # 201 Created
+print("Created Resource:", response.json())
+
+# 4. PUT (Full Update)
+updated_post = {"title": "Updated Title", "body": "Updated Body", "userId": 1}
+response = requests.put(f"{BASE_URL}/1", json=updated_post)
+print(f"PUT Status: {response.status_code}")
+
+# 5. DELETE (Remove Resource)
+response = requests.delete(f"{BASE_URL}/1")
+print(f"DELETE Status: {response.status_code}")  # 200 OK or 204 No Content
+```
+
+---
+
+- Standard Features & Best Practices
+
+- 1. Automatic Error Handling (`raise_for_status`)
+
+Instead of manually checking `if response.status_code == 200:`, call `.raise_for_status()`. It raises a `requests.exceptions.HTTPError` for any 
+`4xx` (client error) or `5xx` (server error) response, letting `2xx` codes pass through silently.
+
+```python
+import requests
+
+try:
+    response = requests.get("https://httpbin.org/status/404", timeout=5)
+    response.raise_for_status()  # Raises HTTPError because status is 404
+except requests.exceptions.HTTPError as err:
+    print(f"[-] HTTP Error: {err}")
+except requests.exceptions.ConnectionError:
+    print("[-] Network / DNS failure.")
+except requests.exceptions.Timeout:
+    print("[-] Request timed out.")
+except requests.exceptions.RequestException as err:
+    print(f"[-] Ambiguous exception: {err}")
+```
+
+- 2. Streaming Large Files (Memory Safety)
+
+Just like chunking with sockets or `urllib`, `requests` supports binary streaming via `stream=True` so large files (like ISOs or archives) 
+do not exhaust system RAM:
+
+```python
+import requests
+
+url = "https://www.python.org/static/img/python-logo.png"
+
+# stream=True keeps the connection open without reading payload into memory immediately
+with requests.get(url, stream=True, timeout=10) as response:
+    response.raise_for_status()
+    with open("python_logo.png", "wb") as f:
+        for chunk in response.iter_content(chunk_size=8192):  # Stream 8KB chunks
+            if chunk:
+                f.write(chunk)
+
+print("[+] File successfully downloaded in chunks.")
+```
+
+- 3. Persistent Sessions (`requests.Session`)
+
+If you make multiple requests to the same host, a `Session` object reuses the underlying TCP connection (via HTTP Keep-Alive), persisting cookies, 
+headers, and authentication parameters across all calls:
+
+```python
+import requests
+
+# Create a session instance
+session = requests.Session()
+
+# Configure default headers and auth for all requests in this session
+session.headers.update({
+    "User-Agent": "SecurityScanner/1.0",
+    "Authorization": "Bearer YOUR_SECRET_TOKEN"
+})
+
+# Connection 1: Benefits from headers and keeps TCP socket open
+response1 = session.get("https://httpbin.org/headers")
+
+# Connection 2: Reuses existing TCP socket (much faster)
+response2 = session.get("https://httpbin.org/cookies/set/session_id/xyz123")
+
+print(response2.json())
+```
+
+---
+
+- `urllib` vs. `requests` Cheat Sheet
+
+| Task               | `urllib` (Standard Library)                       | `requests` (Third-Party)         |
+| ---                | ---                                               | ---                              |
+| GET Request        | `urllib.request.urlopen(url)`                     | `requests.get(url)`              |
+| JSON Decoding      | `json.loads(response.read().decode('utf-8'))`     | `response.json()`                |
+| POST JSON          | `json.dumps(d).encode()`, set header, `urlopen()` | `requests.post(url, json=d)`     |
+| Custom Headers     | `Request(url, headers=...)`                       | `requests.get(url, headers=...)` |
+| Set Timeout        | `urlopen(url, timeout=5)`                         | `requests.get(url, timeout=5)`   |
+| Cookie Persistence | `HTTPCookieProcessor` + `build_opener`            | `session = requests.Session()`   |
+
+
+
+
+
+
+
+
+
+    => In Python networking and security tooling, a proxy acts as an intermediary server that sits between your Python client 
+    (e.g., `requests` or `urllib`) and the destination web server.
+
+- When you route traffic through a proxy, the target server sees the proxy's IP address and headers instead of your machine's. 
+This is fundamental for:
+    * Security & Penetration Testing: Intercepting, inspecting, and modifying HTTP/HTTPS traffic using tools like Burp Suite, OWASP ZAP, 
+    or mitmproxy.
+    * Scraping & Automation: Rotating IP addresses to prevent rate-limiting or WAF blocking.
+    * Corporate Networks: Routing traffic through internal gateway proxies.
+
+---
+
+- How Proxy Types Work
+
+```
+[ Python Client ] ---> [ Proxy Server ] ---> [ Destination Web Server ]
+                          (Burp / ZAP / 
+                         IP Rotating Pool)
+```
+
+1. HTTP Proxy: Intercepts unencrypted HTTP requests and forwards them.
+2. HTTPS (CONNECT) Tunneling: For encrypted HTTPS traffic, the proxy uses the `HTTP CONNECT` method to establish a raw TCP tunnel, 
+allowing TLS negotiation to pass directly between the client and destination.
+3. SOCKS Proxy (SOCKS4 / SOCKS5): A lower-level proxy that works at the TCP/UDP layer (Layer 4), capable of handling non-HTTP traffic 
+like DNS lookups, SSH, or custom raw sockets.
+
+---
+
+-> 1. Using Proxies in Python `requests`
+
+`requests` makes proxy integration simple via the `proxies` dictionary parameter.
+
+- Basic HTTP & HTTPS Proxy Setup
+
+```python
+import requests
+
+# Define proxy mapping for HTTP and HTTPS protocols
+proxies = {
+    "http": "http://10.10.1.10:8080",
+    "https": "http://10.10.1.10:1080",
+}
+
+try:
+    # Route request through proxy
+    response = requests.get("https://httpbin.org/ip", proxies=proxies, timeout=5)
+    print("Origin IP seen by server:", response.json().get("origin"))
+except requests.exceptions.RequestException as err:
+    print("Proxy connection error:", err)
+```
+
+- Authenticated Proxies
+    - If your proxy requires a username and password, embed the credentials directly into the proxy URL:
+
+```python
+proxies = {
+    "http": "http://username:password@proxy.example.com:8080",
+    "https": "http://username:password@proxy.example.com:8080",
+}
+```
+
+- Using SOCKS4 / SOCKS5 Proxies
+    - To support SOCKS proxies in `requests`, install the `PySocks` extension:
+
+```bash
+pip install requests[socks]
+```
+
+```python
+import requests
+
+proxies = {
+    "http": "socks5://127.0.0.1:9050",   # e.g., local Tor proxy
+    "https": "socks5://127.0.0.1:9050",
+}
+
+response = requests.get("https://httpbin.org/ip", proxies=proxies)
+print("IP address via SOCKS5:", response.json().get("origin"))
+```
+
+---
+
+-> 2. Intercepting Traffic with Burp Suite / OWASP ZAP
+
+- When auditing web applications or debugging your own HTTP tools, you route Python scripts through an intercepting proxy (like Burp Suite 
+running locally on `[http://127.0.0.1:8080](http://127.0.0.1:8080)`).
+
+- Because Burp acts as a "Man-in-the-Middle" (MitM) to decrypt HTTPS traffic, Python will raise an `SSLError` because it doesn't 
+trust Burp's local CA certificate.
+
+- Method A: Disable TLS Verification (For Rapid Testing Only)
+
+```python
+import requests
+import urllib3
+
+# Suppress InsecureRequestWarning when verify=False
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+burp_proxy = {
+    "http": "http://127.0.0.1:8080",
+    "https": "http://127.0.0.1:8080",
+}
+
+# verify=False disables CA certificate validation
+response = requests.get("https://httpbin.org/get", proxies=burp_proxy, verify=False)
+print("Status Code:", response.status_code)
+```
+
+- Method B: Pass Custom CA Certificate Bundle (Production/Secure Testing)
+    - Download Burp/ZAP's CA certificate (`cacert.der` or convert to `cacert.pem`) and pass it to `verify`:
+
+```python
+import requests
+
+burp_proxy = {
+    "http": "http://127.0.0.1:8080",
+    "https": "http://127.0.0.1:8080",
+}
+
+# Pass path to Burp's exported CA certificate file
+response = requests.get(
+    "https://httpbin.org/get", 
+    proxies=burp_proxy, 
+    verify="burp_ca_cert.pem"
+)
+```
+
+---
+
+- 3. Setting Proxies via Environment Variables
+    - If you have a large script or third-party tool and don't want to pass `proxies=` to every function call, configure system 
+    environment variables. `requests` and `urllib` detect these automatically:
+
+```python
+import os
+import requests
+
+# Set environment variables programmatically (or set them in your terminal shell)
+os.environ["HTTP_PROXY"] = "http://127.0.0.1:8080"
+os.environ["HTTPS_PROXY"] = "http://127.0.0.1:8080"
+os.environ["NO_PROXY"] = "localhost,127.0.0.1"  # Bypass proxy for local addresses
+
+# Automatically uses the proxy set in environment variables!
+response = requests.get("https://httpbin.org/ip")
+print(response.json())
+```
+
+---
+
+- 4. Rotating Proxy IP Pool Helper
+    - Here is a practical pattern for rotating proxy servers automatically in web scrapers or security tools:
+
+```python
+import random
+import requests
+
+PROXY_POOL = [
+    "http://10.10.1.1:8080",
+    "http://10.10.1.2:8080",
+    "http://10.10.1.3:8080",
+]
+
+def fetch_with_random_proxy(url: str):
+    selected_proxy = random.choice(PROXY_POOL)
+    proxies = {"http": selected_proxy, "https": selected_proxy}
+
+    try:
+        print(f"[*] Fetching {url} via proxy: {selected_proxy} ...")
+        response = requests.get(url, proxies=proxies, timeout=5)
+        response.raise_for_status()
+        return response.text
+    except requests.exceptions.RequestException as err:
+        print(f"[-] Proxy {selected_proxy} failed: {err}")
+        return None
+
+if __name__ == "__main__":
+    fetch_with_random_proxy("http://httpbin.org/ip")
 ```
