@@ -1,0 +1,112 @@
+A RESTful API (Representational State Transfer) is an architectural style for designing networked applications. It relies on a stateless, 
+client-server communication protocol—almost universally HTTP—to allow clients (web apps, mobile apps, Python scripts) to create, read, update, 
+and delete resources on a server.
+
+In REST, everything is a resource (a user, a document, an order), identified by a unique URI (Uniform Resource Identifier), and manipulated using 
+standard HTTP operations.
+
+---
+
+- The 6 Guiding Constraints of REST
+
+- To be considered truly "RESTful," an API must follow six architectural constraints established by Roy Fielding in 2000:
+    1. Client-Server Architecture: The client (user interface/frontend) and server (data/backend) are strictly separated. They can evolve independently 
+    as long as the interface contract isn't broken.
+    2. Statelessness: The server does not store any client session state between requests. Every single request from a client must contain all 
+    the information necessary for the server to understand and process it (e.g., authentication tokens like JWTs).
+    3. Cacheability: Server responses must explicitly mark themselves as cacheable or non-cacheable so clients and intermediate proxies can reuse data 
+    and reduce network overhead.
+    4. Uniform Interface: A standardized way of interacting with the server regardless of device or application type. This requires:
+        * Resource Identification: Resources are identified via URIs (e.g., `/api/v1/users/42`).
+        * Manipulation through Representations: Clients hold representations of resources (usually JSON or XML) to modify or delete them.
+        * Self-descriptive Messages: Each message includes enough information to describe how to process it (e.g., `Content-Type: application/json`).
+        * HATEOAS (Hypermedia As The Engine Of Application State): Responses contain links to other related actions/resources.
+    5. Layered System: A client cannot ordinarily tell whether it is connected directly to the end server or to an intermediate proxy, load balancer, 
+    or API gateway.
+    6. Code on Demand (Optional): Servers can temporarily extend client functionality by transferring executable code (e.g., JavaScript scripts).
+
+---
+
+- Mapping HTTP Verbs to Resource Actions (CRUD)
+
+REST maps standard HTTP methods to CRUD (Create, Read, Update, Delete) database operations:
+
+| HTTP Method | Action / CRUD    | Example URI    | Description                                                  | Safe? | Idempotent? |
+| ---         | ---              | ---            | ---                                                          | ---   | ---         |
+| `GET`       | Read             | `/api/users`   | Retrieve a list of users or a specific user (`/api/users/1`) | Yes   | Yes         |
+| `POST`      | Create           | `/api/users`   | Create a new user resource                                   | No    | No          |
+| `PUT`       | Update (Replace) | `/api/users/1` | Completely replace user #1 with new payload                  | No    | Yes         |
+| `PATCH`     | Update (Partial) | `/api/users/1` | Partially modify specific fields of user #1                  | No    | No          |
+| `DELETE`    | Delete           | `/api/users/1` | Remove user #1 from the system                               | No    | Yes         |
+
+* Safe Methods:* Do not modify resources on the server (reading only).
+* Idempotent Methods: Making the exact same request multiple times produces the same result on the server state as making it once.
+
+---
+
+- Standard RESTful URI Naming Conventions
+
+=> Good REST APIs use clean, noun-based resource paths rather than verb-based actions:
+
+| Action              | ❌ Bad (RPC Style)        | ✅ Good (RESTful Style)   |
+| ---                 | ---                       | ---                       |
+| Get all items       | `GET /getAllItems`        | `GET /api/items`          |
+| Get item 5          | `GET /getItem?id=5`       | `GET /api/items/5`        |
+| Create item         | `POST /createNewItem`     | `POST /api/items`         |
+| Get item 5's orders | `GET /getItemOrders?id=5` | `GET /api/items/5/orders` |
+| Delete item 5       | `POST /deleteItem/5`      | `DELETE /api/items/5`     |
+
+---
+
+- Consuming a REST API in Python (`requests` vs. `urllib`)
+
+Here is how to interact with a RESTful API in Python using both the standard library `urllib` (which you've been practicing) and the industry-standard 
+`requests` library.
+
+- Example: Consuming a JSON REST API (`[https://jsonplaceholder.typicode.com/posts](https://jsonplaceholder.typicode.com/posts)`)
+
+```python
+import json
+import urllib.request
+import urllib.error
+
+# Target RESTful Resource Endpoint
+API_URL = "https://jsonplaceholder.typicode.com/posts"
+
+def create_new_post(title: str, body: str, user_id: int):
+    # 1. Payload representation (JSON)
+    payload = {
+        "title": title,
+        "body": body,
+        "userId": user_id
+    }
+    json_bytes = json.dumps(payload).encode('utf-8')
+
+    # 2. Construct RESTful HTTP POST request with appropriate headers
+    req = urllib.request.Request(
+        API_URL,
+        data=json_bytes,
+        headers={
+            "Content-Type": "application/json; charset=UTF-8",
+            "User-Agent": "PythonRESTClient/1.0"
+        },
+        method="POST"
+    )
+
+    try:
+        # 3. Transmit request and process HTTP status + representation
+        with urllib.request.urlopen(req, timeout=5) as response:
+            # 201 Created is the standard REST status code for successful creation
+            print(f"[*] Response Status: {response.status} {response.reason}")
+            
+            created_resource = json.load(response)
+            print("[+] Successfully Created REST Resource:")
+            print(json.dumps(created_resource, indent=2))
+
+    except urllib.error.HTTPError as err:
+        print(f"[-] HTTP Error {err.code}: {err.reason}")
+
+if __name__ == "__main__":
+    create_new_post("Learning REST APIs", "REST uses HTTP methods for CRUD operations.", 1)
+
+```
